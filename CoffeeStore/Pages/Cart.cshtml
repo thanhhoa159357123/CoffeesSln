@@ -1,0 +1,116 @@
+﻿@page
+@model CartModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "Your Cart";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+    .title {
+        margin-top: 20px;
+        margin-bottom: 20px;
+        font-size: 20px;
+    }
+</style>
+
+<div class="title">
+    Đơn hàng của bạn
+</div>
+
+<table class="table table-bordered table-striped">
+    <thead>
+        <tr>
+            <th>Quantity</th>
+            <th>Product</th>
+            <th class="text-right">Price</th>
+            <th class="text-right">Total</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var line in Model.Cart.Lines)
+        {
+            <tr>
+                <td class="text-center">
+                    <form asp-page-handler="UpdateQuantity" method="post" onsubmit="updateTotal(this); return false;">
+                        <input type="hidden" name="ProductID" value="@line.Product.ProductID" />
+                        <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+                        <input type="number" name="quantity" value="@line.Quantity" min="1" />
+                    </form>
+                </td>
+                <td class="text-left">@line.Product.Name</td>
+                <td class="text-right">@((line.Product.Price).ToString("N0").Replace(",", "."))</td>
+                <td class="text-right total-price">@((line.Quantity * line.Product.Price).ToString("N0").Replace(",", "."))</td>
+                <td class="text-center">
+                    <form asp-page-handler="Remove" method="post">
+                        <input type="hidden" name="ProductID" value="@line.Product.ProductID" />
+                        <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+                        <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+    <tfoot>
+        <tr>
+            <td colspan="3" class="text-right">Total:</td>
+            <td class="text-right" id="total-value">@((Model.Cart.ComputeTotalValue()).ToString("N0"))</td>
+        </tr>
+    </tfoot>
+</table>
+
+<div class="address-input text-center">
+    <label for="address">Enter your address:</label>
+    <input type="text" id="address" name="address" class="form-control" placeholder="Enter your address" />
+</div>
+
+<div class="text-center mt-2 p-2">
+    <a class="btn btn-info text-white mr-4" href="@Model.ReturnUrl">Continue Shopping</a>
+    <a class="btn btn-info text-white ml-4" asp-controller="Order" asp-action="Order">Order</a>
+</div>
+
+@section Scripts {
+    <script>
+        function updateTotal(form) {
+            var quantityInput = form.querySelector('input[name="quantity"]');
+            var quantity = parseFloat(quantityInput.value); // Lấy giá trị số lượng và chuyển thành số thực
+
+            var priceElement = form.closest('tr').querySelector('.text-right'); // Lấy element chứa giá sản phẩm
+            var priceString = priceElement.innerText.trim(); // Lấy chuỗi giá sản phẩm
+
+            // Tách giá trị số từ chuỗi đơn vị tiền tệ (Ví dụ: "25,000 ₫" -> "25,000")
+            var priceValue = parseFloat(priceString.replace(/[^\d]/g, '')); // Xóa bỏ các ký tự không phải số từ chuỗi giá
+
+            var totalPriceElement = form.closest('tr').querySelector('.total-price'); // Lấy element để hiển thị tổng tiền
+
+            var totalPrice = quantity * priceValue; // Tính toán tổng tiền dựa trên số lượng và giá
+            totalPriceElement.innerText = formatCurrency(totalPrice); // Hiển thị tổng tiền theo định dạng đồng Việt Nam
+
+            updateGrandTotal(); // Cập nhật tổng số tiền toàn bộ
+        }
+
+        function updateGrandTotal() {
+            var totalValue = 0;
+            var totalElements = document.querySelectorAll('.total-price');
+            totalElements.forEach(function (element) {
+                var priceString = element.innerText.trim();
+                var price = parseFloat(priceString.replace(/[^\d]/g, '')); // Xóa bỏ các ký tự không phải số từ chuỗi giá
+                totalValue += price;
+            });
+            document.getElementById('total-value').innerText = formatCurrency(totalValue); // Hiển thị tổng số tiền toàn bộ theo định dạng đồng Việt Nam
+        }
+
+        function formatCurrency(amount) {
+            // Làm tròn đến 0 chữ số thập phân và không hiển thị .00 nếu là số nguyên
+            var formattedAmount = amount.toLocaleString('vi-VN', { style: 'currency', currency: 'VND', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+            // Kiểm tra nếu chuỗi kết quả kết thúc bằng '.00', loại bỏ nó
+            if (formattedAmount.endsWith(' đ')) {
+                formattedAmount = formattedAmount.slice(0, -3);
+            }
+
+            return formattedAmount;
+        }
+    </script>
+}
